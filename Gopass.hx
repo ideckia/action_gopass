@@ -58,7 +58,7 @@ class Gopass extends IdeckiaAction {
 					case None:
 						server.log.error('Cannot get [${props.secret_name}] secret.');
 				}
-			});
+			}).catchError(error -> server.log.error('Error getting [${props.secret_name}] secret: $error'));
 		}
 
 		return super.init(initialState);
@@ -66,8 +66,10 @@ class Gopass extends IdeckiaAction {
 
 	public function execute(currentState:ItemState):js.lib.Promise<ItemState> {
 		return new js.lib.Promise((resolve, reject) -> {
-			if (actionLogin != null && props.cache_response)
-				resolve(currentState);
+			if (actionLogin != null && props.cache_response) {
+				actionLogin.execute(currentState).then(s -> resolve(s)).catchError(e -> reject(e));
+				return;
+			}
 
 			loadSecret().then(userpass -> {
 				switch userpass {
@@ -103,7 +105,7 @@ class Gopass extends IdeckiaAction {
 			cp.stdout.on('end', d -> {
 				var cleanData = cleanResponse(data);
 				if (error != '' || cleanData.length == 0)
-					resolve(None);
+					reject(error);
 				else {
 					var cleanArray = cleanData.split(props.username_password_separator);
 					var userPass = if (cleanArray.length == 1) {
